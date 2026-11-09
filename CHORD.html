@@ -1,0 +1,1680 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>KordKu - Chord 2 Kolom</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    html, body, #scrollContainer, .song-sheet-2col {
+      touch-action: pan-x pan-y !important;
+      -webkit-text-size-adjust: 100%;
+    }
+
+    /* Warna Akor Hijau Tua */
+    .chord-text {
+      color: #15803d;
+      font-weight: 700;
+      background: transparent;
+      user-select: none;
+    }
+
+    /* Format 2 Kolom dengan Spasi Rapat */
+    .song-sheet-2col {
+      column-count: 2;
+      column-gap: 1.25rem;
+      column-rule: 1px dashed #e2e8f0;
+      column-fill: auto !important;
+      height: calc(100vh - 80px);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
+      white-space: pre-wrap;
+      word-break: break-word;
+      line-height: 1.35;
+      letter-spacing: 0.01em;
+    }
+
+    .song-part {
+      display: inline-block;
+      width: 100%;
+      break-inside: avoid !important;
+      -webkit-column-break-inside: avoid !important;
+      page-break-inside: avoid !important;
+      margin-bottom: 0.85rem;
+    }
+
+    @media (max-width: 640px) {
+      .song-sheet-2col {
+        column-gap: 1rem;
+      }
+    }
+
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 5px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #f8fafc;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+
+    .action-menu-panel {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease-in-out;
+    }
+    .action-menu-panel.open {
+      max-height: 50px;
+    }
+  </style>
+</head>
+<body class="bg-white text-slate-800 h-screen flex flex-col font-sans overflow-hidden">
+
+  <!-- Header Navigasi -->
+  <header id="mainHeader" class="bg-white border-b border-slate-200 px-3 py-2 flex items-center justify-between shadow-xs z-20 shrink-0">
+    <div class="flex items-center gap-1.5 sm:gap-2 overflow-hidden flex-1 min-w-0">
+      <button id="sidebarToggle" class="p-2 text-slate-700 hover:bg-slate-100 active:scale-95 transition-all rounded-lg flex items-center gap-2 text-xs font-bold max-w-[170px] sm:max-w-xs md:max-w-sm truncate border border-slate-200 shadow-2xs">
+        <i class="fa-solid fa-bars text-sm shrink-0 text-slate-600"></i> 
+        <span id="navSongTitle" class="truncate font-bold">Pilih Lagu</span>
+      </button>
+
+      <button id="btnToggleColumn" class="text-[11px] sm:text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1.5 rounded-md border border-slate-300 font-bold transition shrink-0 active:scale-95">
+        <span id="colModeText">2 Kolom</span>
+      </button>
+    </div>
+
+    <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
+      <button id="btnOpenAddModal" class="text-xs bg-emerald-700 hover:bg-emerald-800 active:scale-95 text-white px-2.5 py-1.5 rounded-md font-bold flex items-center gap-1 transition shadow-xs">
+        <i class="fa-solid fa-plus text-xs"></i> <span>Tambah</span>
+      </button>
+
+      <button id="btnOpenExportModal" class="text-xs bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-700 px-2.5 py-1.5 rounded-md border border-slate-300 font-bold flex items-center gap-1.5 transition">
+        <i class="fa-solid fa-file-export text-emerald-700"></i> Export
+      </button>
+    </div>
+  </header>
+
+  <!-- Area Konten Utama -->
+  <div class="flex flex-1 overflow-hidden relative">
+
+    <!-- Sidebar Daftar Lagu -->
+    <aside id="sidebar" class="w-[88vw] max-w-sm sm:w-96 bg-white border-r border-slate-200 flex flex-col shrink-0 absolute z-40 h-full transition-transform duration-300 ease-out -translate-x-full shadow-2xl overflow-hidden">
+      <div class="p-3.5 border-b border-slate-100 bg-slate-50 flex items-center justify-between shrink-0">
+        <div>
+          <span class="text-sm font-black text-slate-800" id="songCounterBadge">Daftar Lagu</span>
+          <span class="block text-[11px] text-emerald-700 font-bold" id="storageStatusBadge">Memuat memori...</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="btnOpenAddModalSidebar" class="w-9 h-9 flex items-center justify-center text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-full text-sm font-bold transition active:scale-90" title="Tambah Lagu">
+            <i class="fa-solid fa-plus"></i>
+          </button>
+          <button id="closeSidebarBtn" class="w-9 h-9 flex items-center justify-center text-slate-500 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 rounded-full transition active:scale-90" title="Tutup Menu">
+            <i class="fa-solid fa-xmark text-lg"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Tab Filter -->
+      <div class="px-2 pt-2 bg-slate-50 border-b border-slate-100 flex gap-1 shrink-0">
+        <button id="filterTabAll" class="flex-1 py-2 text-xs font-black rounded-t-lg bg-white text-emerald-800 border-t border-x border-slate-200 shadow-2xs transition-all">Semua Lagu</button>
+        <button id="filterTabPlaylist" class="flex-1 py-2 text-xs font-bold rounded-t-lg text-slate-500 hover:text-amber-600 flex items-center justify-center gap-1 transition-all">
+          <i class="fa-solid fa-layer-group text-xs"></i> Playlist Panggung
+        </button>
+      </div>
+
+      <!-- Area Pencarian -->
+      <div id="searchArea" class="p-2.5 border-b border-slate-100 shrink-0">
+        <div class="relative">
+          <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+          <input type="text" id="searchInput" placeholder="Cari judul lagu / artis..." class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-sm font-semibold focus:outline-none focus:ring-1 focus:ring-emerald-600 transition">
+        </div>
+      </div>
+      
+      <!-- List Lagu -->
+      <div id="songList" class="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar divide-y divide-slate-100 min-w-0"></div>
+    </aside>
+
+    <div id="sidebarOverlay" class="fixed inset-0 bg-slate-900/30 backdrop-blur-xs z-30 hidden transition-opacity duration-300"></div>
+
+    <!-- Lembar Chord -->
+    <main class="flex-1 flex flex-col bg-white overflow-hidden relative">
+      <div id="scrollContainer" class="flex-1 overflow-y-auto custom-scrollbar px-4 md:px-10 pt-4 pb-52">
+        <div class="max-w-5xl mx-auto">
+          <div id="songContentSheet" class="song-sheet-2col text-slate-900 text-base select-text">
+            Memuat chord...
+          </div>
+        </div>
+      </div>
+
+      <!-- KAPSUL TRANSPOSE MELAYANG VERTIKAL -->
+      <div id="floatingTransposeContainer" class="fixed right-0 top-20 z-30 flex items-center transition-transform duration-300 ease-out translate-x-0">
+        <button id="btnToggleTransSlide" class="bg-slate-900/85 hover:bg-slate-900 text-slate-300 hover:text-white px-2 py-5 rounded-l-2xl border-y border-l border-white/20 shadow-2xl text-xs active:scale-95 transition" title="Geser sembunyikan / tampilkan transpose">
+          <i id="transToggleIcon" class="fa-solid fa-chevron-right"></i>
+        </button>
+
+        <div class="bg-slate-900/80 backdrop-blur-md border-y border-l border-white/25 p-2 rounded-l-3xl shadow-2xl flex flex-col items-center gap-2 text-white select-none">
+          <button id="btnFloatingTransUp" class="w-11 h-11 rounded-2xl bg-white/15 hover:bg-white/25 active:scale-90 text-white flex items-center justify-center text-lg font-black transition border border-white/20 shadow-sm" title="Transpose Naik (♯)">
+            ♯
+          </button>
+          
+          <button id="btnFloatingTransReset" class="w-11 py-1 rounded-xl bg-white/10 hover:bg-white/20 text-center active:scale-95 transition" title="Klik untuk Reset ke Nada Asli (0)">
+            <div class="text-[9px] font-bold text-slate-300 uppercase tracking-tighter leading-none">KEY</div>
+            <span id="floatingTransBadge" class="text-xs font-mono font-black text-amber-300 leading-tight">0</span>
+          </button>
+
+          <button id="btnFloatingTransDown" class="w-11 h-11 rounded-2xl bg-white/15 hover:bg-white/25 active:scale-90 text-white flex items-center justify-center text-lg font-black transition border border-white/20 shadow-sm" title="Transpose Turun (♭)">
+            ♭
+          </button>
+        </div>
+      </div>
+
+      <!-- KAPSUL KONTROL KECEPATAN & YOUTUBE -->
+      <div id="floatingSpeedBarContainer" class="fixed right-0 bottom-24 z-30 flex items-center transition-transform duration-300 ease-out translate-x-0">
+        <button id="btnToggleCapsuleSlide" class="bg-slate-900/85 hover:bg-slate-900 text-slate-300 hover:text-white px-2 py-6 rounded-l-2xl border-y border-l border-white/20 shadow-2xl text-xs active:scale-95 transition" title="Geser sembunyikan / tampilkan bilah">
+          <i id="capsuleToggleIcon" class="fa-solid fa-chevron-right"></i>
+        </button>
+
+        <div class="bg-slate-900/80 backdrop-blur-md border-y border-l border-white/25 p-2 rounded-l-3xl shadow-2xl flex flex-col items-center gap-2 text-white select-none">
+          <button id="btnCapsuleYoutube" class="w-11 h-11 rounded-2xl bg-red-600 hover:bg-red-700 active:scale-90 text-white flex items-center justify-center text-lg transition shadow-md border border-white/30" title="Klik 1x: Play/Pause | Klik 2x: Buka/Tutup Media Player">
+            <i class="fa-brands fa-youtube"></i>
+          </button>
+
+          <div class="w-8 border-b border-white/20 my-0.5"></div>
+
+          <button id="btnSpeedUp" class="w-11 h-11 rounded-2xl bg-white/15 hover:bg-white/25 active:scale-90 text-white flex items-center justify-center text-base font-bold transition border border-white/20" title="Percepat Scroll (+0.05x)">
+            <i class="fa-solid fa-chevron-up"></i>
+          </button>
+          
+          <button id="btnFloatingAutoScroll" class="w-12 h-12 rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:scale-90 text-white flex items-center justify-center text-lg transition shrink-0 shadow-lg border border-white/40" title="Mulai / Jeda Auto-Scroll">
+            <i class="fa-solid fa-play"></i>
+          </button>
+
+          <div class="flex flex-col items-center py-0.5">
+            <span id="floatingSpeedValueText" class="text-xs font-mono font-black text-amber-300 text-center leading-tight">0.20x</span>
+            <span class="text-[9px] font-bold text-slate-300 scale-90 uppercase tracking-tighter">Auto</span>
+          </div>
+
+          <button id="btnSpeedDown" class="w-11 h-11 rounded-2xl bg-white/15 hover:bg-white/25 active:scale-90 text-white flex items-center justify-center text-base font-bold transition border border-white/20" title="Perlambat Scroll (-0.05x)">
+            <i class="fa-solid fa-chevron-down"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Tombol Mengambang Pengaturan -->
+      <button id="btnOpenControl" class="fixed right-3 bottom-8 z-30 w-12 h-12 bg-emerald-700 hover:bg-emerald-800 text-white rounded-full shadow-2xl flex items-center justify-center transition-all duration-200 active:scale-90 border-2 border-white" title="Buka Pengaturan">
+        <i class="fa-solid fa-sliders text-lg"></i>
+      </button>
+
+      <!-- PEMUTAR YOUTUBE MELAYANG -->
+      <div id="floatingYoutubeWidget" class="hidden fixed bottom-24 right-16 sm:right-20 w-[calc(100vw-80px)] sm:w-80 max-w-xs bg-slate-900 text-white rounded-2xl shadow-2xl border border-slate-700 overflow-hidden z-40 transition-all duration-200">
+        <div id="ytWidgetHeader" class="bg-slate-800 px-3 py-2 flex items-center justify-between border-b border-slate-700 select-none">
+          <div class="flex items-center gap-2 truncate flex-1 pr-2">
+            <i class="fa-brands fa-youtube text-red-500 text-sm shrink-0"></i>
+            <span id="ytWidgetTitle" class="text-xs font-bold truncate">Media Player</span>
+          </div>
+          <div class="flex items-center gap-1 shrink-0">
+            <button id="btnCloseYtWidget" class="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-rose-400 rounded-lg hover:bg-slate-700 transition" title="Sembunyikan Player">
+              <i class="fa-solid fa-xmark text-sm"></i>
+            </button>
+          </div>
+        </div>
+
+        <div id="ytWidgetBody" class="p-2 flex flex-col gap-2">
+          <div id="ytEmptyState" class="flex flex-col gap-2">
+            <a id="btnSearchInApp" href="#" target="_blank" rel="noopener noreferrer" class="w-full py-2.5 bg-red-600 hover:bg-red-700 active:scale-95 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition shadow-sm text-center">
+              <i class="fa-solid fa-magnifying-glass"></i> Cari Lagu di YouTube
+            </a>
+            
+            <div class="mt-1 pt-2 border-t border-slate-800 flex gap-1.5">
+              <input type="text" id="ytLinkInput" placeholder="Tempel link/ID YouTube..." class="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-red-500 font-medium">
+              <button id="btnSaveYtLink" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-lg text-xs font-bold transition">Simpan</button>
+            </div>
+          </div>
+
+          <div id="ytVideoState" class="hidden flex flex-col gap-1.5">
+            <div class="relative w-full aspect-video bg-black rounded-lg overflow-hidden shadow-inner">
+              <iframe 
+                id="ytPlayerIframe" 
+                class="w-full h-full border-0" 
+                playsinline="1" 
+                webkit-playsinline="true" 
+                allow="autoplay; encrypted-media; picture-in-picture">
+              </iframe>
+            </div>
+
+            <div class="flex items-center justify-between text-[11px] px-1 pt-1">
+              <button id="btnChangeYtLink" class="text-slate-400 hover:text-amber-400 font-semibold flex items-center gap-1 transition" title="Ganti Video">
+                <i class="fa-solid fa-link text-[10px]"></i> Ganti Link
+              </button>
+              <a id="btnOpenCurrentVideoInApp" href="#" target="_blank" rel="noopener noreferrer" class="text-red-400 hover:text-red-300 font-semibold flex items-center gap-1 transition" title="Buka di Aplikasi YouTube">
+                <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i> Buka di App
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Panel Pengaturan Mengambang -->
+      <div id="floatingControlPanel" class="hidden fixed right-3 bottom-24 z-40 bg-white/95 backdrop-blur-md rounded-2xl border border-slate-200 p-3 shadow-2xl flex flex-col gap-2.5 w-72 transition-all max-h-[75vh] overflow-y-auto custom-scrollbar">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-1.5">
+          <span class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+            <i class="fa-solid fa-sliders text-emerald-700"></i> Pengaturan
+          </span>
+          <button id="btnCloseControl" class="w-8 h-8 flex items-center justify-center text-slate-500 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 rounded-full transition active:scale-90 font-bold" title="Sembunyikan">
+            <i class="fa-solid fa-xmark text-sm"></i>
+          </button>
+        </div>
+
+        <button id="btnToggleFloatingYt" class="w-full py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl shadow-xs transition active:scale-95 flex items-center justify-center" title="Buka YouTube">
+          <i class="fa-brands fa-youtube text-xl"></i>
+        </button>
+
+        <div class="flex flex-col gap-1 bg-amber-50 p-2.5 rounded-xl border border-amber-200">
+          <div class="flex items-center justify-between pl-1">
+            <span class="text-xs font-bold text-amber-800 flex items-center gap-1.5">
+              <i class="fa-solid fa-note-sticky text-amber-500"></i> Catatan Lagu:
+            </span>
+            <span id="noteAutoSaveStatus" class="text-[10px] text-emerald-600 font-bold hidden">
+              <i class="fa-solid fa-check"></i> Tersimpan
+            </span>
+          </div>
+          <textarea id="songNoteInput" rows="2" placeholder="Catatan capo, nada awal, atau petikan..." class="w-full bg-white border border-amber-200 rounded-lg p-2 text-xs font-medium text-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-500"></textarea>
+        </div>
+
+        <div class="grid grid-cols-2 gap-1.5">
+          <button id="btnEditCurrentSong" class="py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 border border-slate-200 active:scale-95 transition">
+            <i class="fa-solid fa-pen-to-square text-blue-600 text-xs"></i> Edit Lagu
+          </button>
+          <button id="btnTogglePlaylistCurrent" class="py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 border border-slate-200 active:scale-95 transition">
+            <i class="fa-solid fa-layer-group text-amber-500 text-xs"></i> <span id="btnPlaylistCurrentText">Playlist</span>
+          </button>
+        </div>
+
+        <div class="flex items-center justify-between bg-slate-50 p-2 rounded-xl border border-slate-200">
+          <span class="text-xs font-bold text-slate-600 pl-1">Ukuran Lirik:</span>
+          <div class="flex items-center gap-1.5">
+            <button id="btnZoomOut" class="w-9 h-9 rounded-lg bg-white hover:bg-slate-100 text-slate-700 font-bold border border-slate-200 shadow-xs flex items-center justify-center text-base transition active:scale-95">-</button>
+            <span id="fontSizeDisplay" class="text-xs font-bold text-slate-700 w-10 text-center">15px</span>
+            <button id="btnZoomIn" class="w-9 h-9 rounded-lg bg-white hover:bg-slate-100 text-slate-700 font-bold border border-slate-200 shadow-xs flex items-center justify-center text-base transition active:scale-95">+</button>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modal Export -->
+  <div id="exportModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 hidden transition-opacity">
+    <div class="bg-white rounded-2xl w-full max-w-sm shadow-2xl border border-slate-200 flex flex-col overflow-hidden max-h-[90vh]">
+      <div class="p-3.5 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+        <h3 class="text-sm font-bold text-slate-800 flex items-center gap-2">
+          <i class="fa-solid fa-file-export text-emerald-700"></i> Export Cadangan Lagu
+        </h3>
+        <button id="btnCloseExportModal" class="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-700 rounded-full hover:bg-slate-200 transition active:scale-90">
+          <i class="fa-solid fa-xmark text-base"></i>
+        </button>
+      </div>
+      <div class="p-4 flex flex-col gap-2.5 overflow-y-auto custom-scrollbar">
+        <p class="text-[11px] text-slate-500">Pilih format ekspor ke penyimpanan file atau salin langsung ke dokumen:</p>
+        
+        <button id="btnExportJSON" class="w-full p-2.5 rounded-xl border border-emerald-200 bg-emerald-50/60 hover:bg-emerald-100 text-left flex items-center gap-3 transition active:scale-95">
+          <div class="w-8 h-8 rounded-lg bg-emerald-700 text-white flex items-center justify-center shrink-0 font-bold text-xs">{}</div>
+          <div>
+            <div class="text-xs font-bold text-emerald-950">Simpan Format JSON (.json)</div>
+            <div class="text-[10px] text-slate-500">Cadangan utuh seluruh lagu, transpose, & playlist.</div>
+          </div>
+        </button>
+
+        <button id="btnExportHTML" class="w-full p-2.5 rounded-xl border border-blue-200 bg-blue-50/60 hover:bg-blue-100 text-left flex items-center gap-3 transition active:scale-95">
+          <div class="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0 font-bold text-xs">&lt;&gt;</div>
+          <div>
+            <div class="text-xs font-bold text-blue-950">Simpan Format HTML (.html)</div>
+            <div class="text-[10px] text-slate-500">File halaman web siap buka langsung di Safari/Chrome.</div>
+          </div>
+        </button>
+
+        <button id="btnExportTXT" class="w-full p-2.5 rounded-xl border border-amber-200 bg-amber-50/60 hover:bg-amber-100 text-left flex items-center gap-3 transition active:scale-95">
+          <div class="w-8 h-8 rounded-lg bg-amber-600 text-white flex items-center justify-center shrink-0 font-bold text-xs"><i class="fa-solid fa-align-left text-xs"></i></div>
+          <div>
+            <div class="text-xs font-bold text-amber-950">Simpan File TXT Dokumen (.txt)</div>
+            <div class="text-[10px] text-slate-500">Lengkap dengan judul, kunci, catatan, & seluruh lirik/chord.</div>
+          </div>
+        </button>
+
+        <button id="btnCopyAllTxt" class="w-full py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold flex items-center justify-center gap-2 transition active:scale-95 shadow-2xs">
+          <i class="fa-solid fa-copy text-xs"></i> Salin Semua Teks Chord (Siap Paste ke Docs)
+        </button>
+
+        <hr class="border-slate-200 my-1"/>
+
+        <button id="btnViewRawBackup" class="w-full py-2 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold flex items-center justify-center gap-2 transition active:scale-95 shadow-sm">
+          <i class="fa-solid fa-code text-xs"></i> Lihat & Salin Cadangan JSON
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Penampil Teks Cadangan -->
+  <div id="rawTextModal" class="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-3 hidden transition-opacity">
+    <div class="bg-white rounded-2xl w-full max-w-lg shadow-2xl border border-slate-200 flex flex-col overflow-hidden max-h-[85vh]">
+      <div class="p-3.5 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+        <h3 class="text-xs font-bold text-slate-800 flex items-center gap-2">
+          <i class="fa-solid fa-clipboard-check text-emerald-700"></i> Teks Cadangan Siap Salin
+        </h3>
+        <button id="btnCloseRawModal" class="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-700 rounded-full hover:bg-slate-200 transition active:scale-90">
+          <i class="fa-solid fa-xmark text-base"></i>
+        </button>
+      </div>
+      <div class="p-3 flex-1 flex flex-col gap-2 overflow-hidden">
+        <p class="text-[11px] text-slate-500 leading-snug">
+          Browser atau app editor (seperti Koder) memblokir file download langsung. Silakan klik <strong>Salin Semua Teks</strong> di bawah, lalu paste langsung ke file baru:
+        </p>
+        <textarea id="rawTextDisplay" readonly class="flex-1 w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 font-mono text-[10px] leading-relaxed text-slate-700 select-all focus:outline-none"></textarea>
+      </div>
+      <div class="p-3 border-t border-slate-100 bg-slate-50 flex gap-2">
+        <button id="btnCopyFromTextarea" class="flex-1 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition active:scale-95 shadow-sm">
+          <i class="fa-solid fa-copy"></i> Salin Semua Teks
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Playlist -->
+  <div id="playlistModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 hidden transition-opacity">
+    <div class="bg-white rounded-2xl w-full max-w-sm shadow-2xl border border-slate-200 flex flex-col overflow-hidden">
+      <div class="p-3.5 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+        <h3 class="text-sm font-bold text-slate-800 flex items-center gap-2">
+          <i class="fa-solid fa-layer-group text-amber-500"></i> Pilih Playlist
+        </h3>
+        <button id="btnClosePlaylistModal" class="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-700 rounded-full hover:bg-slate-200 transition active:scale-90">
+          <i class="fa-solid fa-xmark text-base"></i>
+        </button>
+      </div>
+      <div class="p-4 flex flex-col gap-3">
+        <div class="flex gap-2">
+          <input type="text" id="newPlaylistInput" placeholder="Nama playlist baru..." class="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-700 font-medium">
+          <button id="btnCreatePlaylist" class="px-3 bg-emerald-700 text-white rounded-lg text-xs font-bold hover:bg-emerald-800 transition active:scale-95">Buat</button>
+        </div>
+        <div class="text-xs font-bold text-slate-500 mt-2">Daftar Playlist Tersedia:</div>
+        <div id="playlistOptionsContainer" class="flex flex-col gap-1.5 max-h-48 overflow-y-auto custom-scrollbar"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Tambah/Edit Lagu -->
+  <div id="songModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 hidden transition-opacity">
+    <div class="bg-white rounded-2xl w-full max-w-lg shadow-2xl border border-slate-200 flex flex-col overflow-hidden max-h-[92vh]">
+      <div class="p-3.5 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+        <h3 id="songModalTitle" class="text-sm font-bold text-slate-800 flex items-center gap-2">
+          <i class="fa-solid fa-guitar text-emerald-700"></i> Tambah Lagu Baru
+        </h3>
+        <button id="btnCloseModal" class="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-700 rounded-full hover:bg-slate-200 transition active:scale-90">
+          <i class="fa-solid fa-xmark text-base"></i>
+        </button>
+      </div>
+
+      <div class="p-4 overflow-y-auto space-y-3 flex-1 custom-scrollbar">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Judul Lagu / Artis</label>
+          <input type="text" id="modalSongTitle" placeholder="Contoh: Dewa 19 - Kangen" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-700 font-medium">
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Kunci Dasar (Key Ori)</label>
+            <input type="text" id="modalSongKey" placeholder="Contoh: C / G / Em" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-700 font-medium">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Link / ID YouTube (Opsional)</label>
+            <input type="text" id="modalSongYoutube" placeholder="Contoh: https://youtu.be/..." class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-700 font-medium">
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Isi Notasi & Chord</label>
+          <textarea id="modalSongBody" rows="11" placeholder="🟨 INTRO&#10;C G Am F&#10;&#10;🟦 VERSE 1&#10;C G Am Em&#10;F C Dm G&#10;&#10;🟩 CHORUS&#10;F G Em Am&#10;Dm G C" class="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-emerald-700 leading-relaxed"></textarea>
+        </div>
+      </div>
+
+      <div class="p-3 border-t border-slate-100 bg-slate-50 flex items-center justify-between">
+        <button id="btnDeleteFromModal" class="px-3 py-1.5 rounded-lg text-rose-600 hover:bg-rose-50 text-xs font-bold hidden flex items-center gap-1 transition">
+          <i class="fa-solid fa-trash-can"></i> Hapus
+        </button>
+        <div class="flex items-center gap-2 ml-auto">
+          <button id="btnCancelModal" class="px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-semibold text-slate-600 hover:bg-slate-100 transition">Batal</button>
+          <button id="btnSaveModal" class="px-4 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold shadow-xs flex items-center gap-1.5 transition active:scale-95">
+            <i class="fa-solid fa-floppy-disk"></i> Simpan
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    var ALL_SONGS = [];
+    var PLAYLISTS = { "Setlist Panggung": [] }; 
+    
+    var STORAGE_KEY = "kordku_master_songs";
+    var PLAYLIST_KEY = "kordku_master_playlists";
+
+    var SCALE = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+    var FLAT_MAP = { "Db": "C#", "Eb": "D#", "Gb": "F#", "Ab": "G#", "Bb": "A#" };
+
+    function transposeChord(chord, semitones) {
+      if (!chord) return '';
+      return chord.replace(/(^|\/)([A-G][b#]?)/g, function(match, slashPfx, note) {
+        var norm = FLAT_MAP[note] || note;
+        var idx = SCALE.indexOf(norm);
+        if (idx === -1) return match;
+        var newIdx = (idx + semitones) % 12;
+        if (newIdx < 0) newIdx += 12;
+        return (slashPfx || '') + SCALE[newIdx];
+      });
+    }
+
+    function parseYouTubeVideoId(urlOrId) {
+      if (!urlOrId) return '';
+      urlOrId = urlOrId.trim();
+      if (/^[a-zA-Z0-9_-]{11}$/.test(urlOrId)) return urlOrId;
+      var regExp = /(?:youtube(?:-nocookie)?\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+      var match = urlOrId.match(regExp);
+      return match ? match[1] : '';
+    }
+
+    var currentSongIndex = -1;
+    var currentTranspose = 0;
+    var currentFontSize = 15;
+    var isScrolling = false;
+    var scrollSpeed = 0.2;
+    var scrollSubPixel = 0;
+    var isTwoColumns = true;
+    var currentFilterMode = 'all'; 
+    var activePlaylistName = null; 
+    var editingIndex = null;
+    var targetPlaylistSongIndex = null;
+    var animationFrameId = null;
+    var isYtWidgetOpen = false;
+    var isYtPlaying = false;
+    var isCapsuleCollapsed = false;
+    var isTransCollapsed = false;
+
+    var floatingControlPanel = document.getElementById("floatingControlPanel");
+    var sidebar = document.getElementById("sidebar");
+    var sidebarOverlay = document.getElementById("sidebarOverlay");
+    var songListEl = document.getElementById("songList");
+    var searchInput = document.getElementById("searchInput");
+    var searchArea = document.getElementById("searchArea");
+    var songContentSheet = document.getElementById("songContentSheet");
+    var scrollContainer = document.getElementById("scrollContainer");
+    var songCounterBadge = document.getElementById("songCounterBadge");
+    var storageStatusBadge = document.getElementById("storageStatusBadge");
+    var navSongTitle = document.getElementById("navSongTitle");
+    var songNoteInput = document.getElementById("songNoteInput");
+    var noteAutoSaveStatus = document.getElementById("noteAutoSaveStatus");
+
+    var filterTabAll = document.getElementById("filterTabAll");
+    var filterTabPlaylist = document.getElementById("filterTabPlaylist");
+
+    var exportModal = document.getElementById("exportModal");
+    var btnOpenExportModal = document.getElementById("btnOpenExportModal");
+    var btnCloseExportModal = document.getElementById("btnCloseExportModal");
+
+    var rawTextModal = document.getElementById("rawTextModal");
+    var rawTextDisplay = document.getElementById("rawTextDisplay");
+    var btnCloseRawModal = document.getElementById("btnCloseRawModal");
+    var btnCopyFromTextarea = document.getElementById("btnCopyFromTextarea");
+
+    // Widget YouTube Element
+    var floatingYoutubeWidget = document.getElementById("floatingYoutubeWidget");
+    var ytWidgetTitle = document.getElementById("ytWidgetTitle");
+    var ytWidgetBody = document.getElementById("ytWidgetBody");
+    var ytPlayerIframe = document.getElementById("ytPlayerIframe");
+    var ytEmptyState = document.getElementById("ytEmptyState");
+    var ytVideoState = document.getElementById("ytVideoState");
+    var ytLinkInput = document.getElementById("ytLinkInput");
+    var btnSaveYtLink = document.getElementById("btnSaveYtLink");
+    var btnChangeYtLink = document.getElementById("btnChangeYtLink");
+    var btnSearchInApp = document.getElementById("btnSearchInApp");
+    var btnOpenCurrentVideoInApp = document.getElementById("btnOpenCurrentVideoInApp");
+    var btnCloseYtWidget = document.getElementById("btnCloseYtWidget");
+    var btnToggleFloatingYt = document.getElementById("btnToggleFloatingYt");
+    var btnCapsuleYoutube = document.getElementById("btnCapsuleYoutube");
+
+    // Kontrol Scroll Vertikal & Slider Collapse Handle
+    var floatingSpeedBarContainer = document.getElementById("floatingSpeedBarContainer");
+    var btnToggleCapsuleSlide = document.getElementById("btnToggleCapsuleSlide");
+    var capsuleToggleIcon = document.getElementById("capsuleToggleIcon");
+    var btnSpeedUp = document.getElementById("btnSpeedUp");
+    var btnSpeedDown = document.getElementById("btnSpeedDown");
+    var btnFloatingAutoScroll = document.getElementById("btnFloatingAutoScroll");
+    var floatingSpeedValueText = document.getElementById("floatingSpeedValueText");
+
+    // Kontrol Transpose Melayang Terpisah & Collapse Handle
+    var floatingTransposeContainer = document.getElementById("floatingTransposeContainer");
+    var btnToggleTransSlide = document.getElementById("btnToggleTransSlide");
+    var transToggleIcon = document.getElementById("transToggleIcon");
+    var btnFloatingTransUp = document.getElementById("btnFloatingTransUp");
+    var btnFloatingTransDown = document.getElementById("btnFloatingTransDown");
+    var btnFloatingTransReset = document.getElementById("btnFloatingTransReset");
+    var floatingTransBadge = document.getElementById("floatingTransBadge");
+
+    function initApp() {
+      var cached = localStorage.getItem(STORAGE_KEY) ||
+                   localStorage.getItem("kordku_saved_songs_v1") || 
+                   localStorage.getItem("kordku_saved_songs_v2") || 
+                   localStorage.getItem("kordku_saved_songs_v3") || 
+                   localStorage.getItem("kordku_saved_songs_v4");
+
+      if (cached) {
+        try {
+          ALL_SONGS = JSON.parse(cached);
+          storageStatusBadge.textContent = "Tersimpan di memori (" + ALL_SONGS.length + " lagu)";
+        } catch (e) {
+          ALL_SONGS = [];
+        }
+      }
+
+      var cachedPlaylists = localStorage.getItem(PLAYLIST_KEY) || localStorage.getItem("kordku_playlists_v1");
+      if (cachedPlaylists) {
+        try { PLAYLISTS = JSON.parse(cachedPlaylists); } catch (e) {}
+      }
+
+      if (!ALL_SONGS || ALL_SONGS.length === 0) {
+        ALL_SONGS = [{
+          title: "Contoh Lagu - Pop Akustik",
+          origKey: "C",
+          youtubeId: "",
+          note: "",
+          transpose: 0,
+          isTwoColumns: true,
+          speed: 0.2,
+          body: "🟨 INTRO\nC G Am F\n\n🟦 VERSE 1\nC G Am Em\nF C Dm G\n\n🟪 PRE-CHORUS\nF G Em Am\nDm G\n\n🟩 CHORUS\nC G Am Em\nF C Dm G\n\n🟥 OUTRO\nF G C"
+        }];
+        storageStatusBadge.textContent = "Belum import file";
+      }
+
+      saveSongsToStorage();
+      renderSongList();
+
+      document.getElementById("btnOpenControl").addEventListener("click", function() { floatingControlPanel.classList.toggle("hidden"); });
+      document.getElementById("btnCloseControl").addEventListener("click", function() { floatingControlPanel.classList.add("hidden"); });
+
+      // SIMPAN OTOMATIS CATATAN LAGU
+      function autoSaveCurrentNote() {
+        if (currentSongIndex >= 0 && ALL_SONGS[currentSongIndex]) {
+          ALL_SONGS[currentSongIndex].note = songNoteInput.value;
+          saveSongsToStorage();
+          noteAutoSaveStatus.classList.remove("hidden");
+          setTimeout(function() { noteAutoSaveStatus.classList.add("hidden"); }, 1500);
+        }
+      }
+      songNoteInput.addEventListener("input", autoSaveCurrentNote);
+      songNoteInput.addEventListener("change", autoSaveCurrentNote);
+      songNoteInput.addEventListener("blur", autoSaveCurrentNote);
+
+      filterTabAll.addEventListener("click", function() { setFilterMode('all'); });
+      filterTabPlaylist.addEventListener("click", function() { setFilterMode('playlist_home'); });
+
+      document.getElementById("btnEditCurrentSong").addEventListener("click", function() {
+        if (currentSongIndex >= 0) {
+          floatingControlPanel.classList.add("hidden");
+          openEditModal(currentSongIndex);
+        }
+      });
+
+      document.getElementById("btnTogglePlaylistCurrent").addEventListener("click", function() {
+        if (currentSongIndex >= 0) openPlaylistSelector(currentSongIndex);
+      });
+
+      // Filter Pencarian
+      searchInput.addEventListener("input", function() {
+        renderSongList();
+      });
+
+      document.getElementById("btnZoomIn").addEventListener("click", function() { adjustFontSize(1); });
+      document.getElementById("btnZoomOut").addEventListener("click", function() { adjustFontSize(-1); });
+
+      document.getElementById("btnToggleColumn").addEventListener("click", toggleColumnMode);
+
+      // Event Kontrol Transpose
+      btnFloatingTransUp.addEventListener("click", function() { changeTranspose(1); });
+      btnFloatingTransDown.addEventListener("click", function() { changeTranspose(-1); });
+      btnFloatingTransReset.addEventListener("click", function() { changeTranspose(0, true); });
+
+      // Event Kontrol Scroll
+      btnFloatingAutoScroll.addEventListener("click", toggleAutoScroll);
+      btnSpeedUp.addEventListener("click", function() { adjustSpeed(0.05); });
+      btnSpeedDown.addEventListener("click", function() { adjustSpeed(-0.05); });
+
+      setupCapsuleSlideToggle();
+      setupTransSlideToggle();
+
+      var openSidebar = function() {
+        sidebar.classList.remove("-translate-x-full");
+        sidebarOverlay.classList.remove("hidden");
+      };
+      var closeSidebar = function() {
+        sidebar.classList.add("-translate-x-full");
+        sidebarOverlay.classList.add("hidden");
+      };
+
+      document.getElementById("sidebarToggle").addEventListener("click", openSidebar);
+      document.getElementById("closeSidebarBtn").addEventListener("click", closeSidebar);
+      sidebarOverlay.addEventListener("click", closeSidebar);
+
+      setupDragAndDrop();
+      setupPinchToZoomText();
+      setupModalEvents();
+      setupPlaylistModalEvents();
+      setupExportModalEvents();
+      setupFloatingYoutubeWidget();
+
+      if (ALL_SONGS && ALL_SONGS.length > 0) {
+        selectSong(0);
+      }
+    }
+
+    // PENGATURAN GESER KANAN / KIRI BILAH KECEPATAN
+    function setupCapsuleSlideToggle() {
+      var toggleCapsule = function() {
+        isCapsuleCollapsed = !isCapsuleCollapsed;
+        if (isCapsuleCollapsed) {
+          floatingSpeedBarContainer.style.transform = "translateX(calc(100% - 24px))";
+          capsuleToggleIcon.className = "fa-solid fa-chevron-left";
+        } else {
+          floatingSpeedBarContainer.style.transform = "translateX(0)";
+          capsuleToggleIcon.className = "fa-solid fa-chevron-right";
+        }
+      };
+
+      btnToggleCapsuleSlide.addEventListener("click", toggleCapsule);
+
+      var touchStartX = 0;
+      floatingSpeedBarContainer.addEventListener('touchstart', function(e) {
+        touchStartX = e.touches[0].clientX;
+      }, { passive: true });
+
+      floatingSpeedBarContainer.addEventListener('touchend', function(e) {
+        var diffX = e.changedTouches[0].clientX - touchStartX;
+        if (diffX > 25 && !isCapsuleCollapsed) {
+          toggleCapsule();
+        } else if (diffX < -25 && isCapsuleCollapsed) {
+          toggleCapsule();
+        }
+      }, { passive: true });
+    }
+
+    // PENGATURAN GESER KANAN / KIRI BILAH TRANSPOSE
+    function setupTransSlideToggle() {
+      var toggleTrans = function() {
+        isTransCollapsed = !isTransCollapsed;
+        if (isTransCollapsed) {
+          floatingTransposeContainer.style.transform = "translateX(calc(100% - 24px))";
+          transToggleIcon.className = "fa-solid fa-chevron-left";
+        } else {
+          floatingTransposeContainer.style.transform = "translateX(0)";
+          transToggleIcon.className = "fa-solid fa-chevron-right";
+        }
+      };
+
+      btnToggleTransSlide.addEventListener("click", toggleTrans);
+
+      var touchStartX = 0;
+      floatingTransposeContainer.addEventListener('touchstart', function(e) {
+        touchStartX = e.touches[0].clientX;
+      }, { passive: true });
+
+      floatingTransposeContainer.addEventListener('touchend', function(e) {
+        var diffX = e.changedTouches[0].clientX - touchStartX;
+        if (diffX > 25 && !isTransCollapsed) {
+          toggleTrans();
+        } else if (diffX < -25 && isTransCollapsed) {
+          toggleTrans();
+        }
+      }, { passive: true });
+    }
+
+    // PENGATURAN TOMBOL YOUTUBE
+    function setupFloatingYoutubeWidget() {
+      var openFloatingYt = function() {
+        isYtWidgetOpen = true;
+        floatingYoutubeWidget.classList.remove("hidden");
+        floatingControlPanel.classList.add("hidden");
+        updateFloatingYoutubePlayer();
+      };
+
+      var toggleFloatingYt = function() {
+        isYtWidgetOpen = !isYtWidgetOpen;
+        if (isYtWidgetOpen) {
+          openFloatingYt();
+        } else {
+          floatingYoutubeWidget.classList.add("hidden");
+        }
+      };
+
+      var toggleYtPlayPause = function() {
+        if (!ALL_SONGS[currentSongIndex] || !ALL_SONGS[currentSongIndex].youtubeId) {
+          openFloatingYt();
+          return;
+        }
+
+        if (!ytPlayerIframe.src || ytPlayerIframe.src === "about:blank") {
+          updateFloatingYoutubePlayer();
+        }
+
+        if (!isYtPlaying) {
+          try {
+            ytPlayerIframe.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
+          } catch(e) {}
+          isYtPlaying = true;
+          btnCapsuleYoutube.classList.add("ring-2", "ring-white", "animate-pulse");
+        } else {
+          try {
+            ytPlayerIframe.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
+          } catch(e) {}
+          isYtPlaying = false;
+          btnCapsuleYoutube.classList.remove("ring-2", "ring-white", "animate-pulse");
+        }
+      };
+
+      var ytClickTimer = null;
+      var lastYtClickTime = 0;
+
+      btnCapsuleYoutube.addEventListener("click", function(e) {
+        e.preventDefault();
+        var now = Date.now();
+
+        if (now - lastYtClickTime < 320) {
+          clearTimeout(ytClickTimer);
+          ytClickTimer = null;
+          lastYtClickTime = 0;
+          toggleFloatingYt();
+        } else {
+          lastYtClickTime = now;
+          ytClickTimer = setTimeout(function() {
+            ytClickTimer = null;
+            toggleYtPlayPause();
+          }, 300);
+        }
+      });
+
+      btnToggleFloatingYt.addEventListener("click", openFloatingYt);
+
+      btnCloseYtWidget.addEventListener("click", function(e) {
+        e.stopPropagation();
+        isYtWidgetOpen = false;
+        floatingYoutubeWidget.classList.add("hidden");
+      });
+
+      btnSearchInApp.addEventListener("click", function() {
+        if (currentSongIndex >= 0 && ALL_SONGS[currentSongIndex]) {
+          var cleanTitle = (ALL_SONGS[currentSongIndex].title || '').replace(/.*?/g, "").trim();
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(cleanTitle + " audio");
+          }
+        }
+      });
+
+      btnSaveYtLink.addEventListener("click", function() {
+        var inputVal = ytLinkInput.value.trim();
+        var extractedId = parseYouTubeVideoId(inputVal);
+        if (!extractedId) {
+          alert("Link atau ID YouTube nggak valid. Periksa lagi linknya.");
+          return;
+        }
+        if (currentSongIndex >= 0 && ALL_SONGS[currentSongIndex]) {
+          ALL_SONGS[currentSongIndex].youtubeId = extractedId;
+          saveSongsToStorage();
+          ytLinkInput.value = "";
+          updateFloatingYoutubePlayer();
+        }
+      });
+
+      btnChangeYtLink.addEventListener("click", function() {
+        if (currentSongIndex >= 0 && ALL_SONGS[currentSongIndex]) {
+          ALL_SONGS[currentSongIndex].youtubeId = "";
+          isYtPlaying = false;
+          btnCapsuleYoutube.classList.remove("ring-2", "ring-white", "animate-pulse");
+          saveSongsToStorage();
+          updateFloatingYoutubePlayer();
+        }
+      });
+    }
+
+    function updateFloatingYoutubePlayer() {
+      if (!isYtWidgetOpen || currentSongIndex < 0 || !ALL_SONGS[currentSongIndex]) return;
+
+      var song = ALL_SONGS[currentSongIndex];
+      var cleanTitle = (song.title || '').replace(/.*?/g, "").trim();
+      ytWidgetTitle.textContent = cleanTitle || "YouTube";
+
+      var encodedQuery = encodeURIComponent(cleanTitle + " audio");
+      btnSearchInApp.href = "https://www.youtube.com/results?search_query=" + encodedQuery;
+
+      if (song.youtubeId) {
+        ytEmptyState.classList.add("hidden");
+        ytVideoState.classList.remove("hidden");
+        
+        btnOpenCurrentVideoInApp.href = "https://www.youtube.com/watch?v=" + song.youtubeId;
+
+        var embedUrl = "https://www.youtube.com/embed/" + song.youtubeId + "?enablejsapi=1&playsinline=1&rel=0";
+        if (ytPlayerIframe.src !== embedUrl) {
+          ytPlayerIframe.src = embedUrl;
+        }
+      } else {
+        ytVideoState.classList.add("hidden");
+        ytEmptyState.classList.remove("hidden");
+        ytPlayerIframe.src = "";
+      }
+    }
+
+    function generateFullSongPlainText() {
+      var txtStr = "====================================================\n";
+      txtStr += "          KOLEKSI CHORD KORDKU (" + ALL_SONGS.length + " LAGU)\n";
+      txtStr += "====================================================\n\n";
+
+      ALL_SONGS.forEach(function(s, idx) {
+        var num = idx + 1;
+        txtStr += num + ". " + (s.title || "Tanpa Judul") + "\n";
+        txtStr += "Kunci Dasar : " + (s.origKey || "C") + "\n";
+        if (s.transpose) {
+          txtStr += "Transpose   : " + (s.transpose > 0 ? "+" : "") + s.transpose + "\n";
+        }
+        if (s.speed) {
+          txtStr += "Kecepatan   : " + s.speed + "x\n";
+        }
+        if (s.note && s.note.trim()) {
+          txtStr += "Catatan     : " + s.note.trim() + "\n";
+        }
+        txtStr += "----------------------------------------------------\n";
+        txtStr += (s.body || "").trim() + "\n";
+        txtStr += "====================================================\n\n";
+      });
+
+      return txtStr;
+    }
+
+    // FUNGSI EXPORT & DOWNLOAD YANG SUPPORT KODER (iOS WEBVIEW) & BROWSER BIASA
+    function triggerExportFile(filename, content, mimeType) {
+      var blob = new Blob([content], { type: (mimeType || "application/json") + ";charset=utf-8" });
+      var isKoderOrApp = /(iPhone|iPad|iPod).*AppleWebKit(?!.*Safari)/i.test(navigator.userAgent) || !navigator.userAgent.includes('Safari');
+      var downloadSucceeded = false;
+
+      try {
+        if (window.URL && window.URL.createObjectURL) {
+          var url = window.URL.createObjectURL(blob);
+          var a = document.createElement('a');
+          a.style.display = 'none';
+          a.href = url;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          downloadSucceeded = true;
+
+          setTimeout(function() {
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+          }, 2000);
+        }
+      } catch (err) {
+        downloadSucceeded = false;
+      }
+
+      // Koder (iOS) memblokir unduhan blob langsung di WebView internal.
+      // Jika di Koder atau download diblokir, langsung tampilkan modal teks cadangan
+      if (isKoderOrApp || !downloadSucceeded) {
+        setTimeout(function() {
+          showRawTextModal(content);
+        }, 300);
+      }
+    }
+
+    function showRawTextModal(text) {
+      exportModal.classList.add("hidden");
+      rawTextDisplay.value = text;
+      rawTextModal.classList.remove("hidden");
+    }
+
+    function setupExportModalEvents() {
+      btnOpenExportModal.addEventListener("click", function() { exportModal.classList.remove("hidden"); });
+      btnCloseExportModal.addEventListener("click", function() { exportModal.classList.add("hidden"); });
+      btnCloseRawModal.addEventListener("click", function() { rawTextModal.classList.add("hidden"); });
+
+      // 1. Export JSON
+      document.getElementById("btnExportJSON").addEventListener("click", function() {
+        var backupData = {
+          version: "1.0",
+          exportDate: new Date().toISOString(),
+          totalSongs: ALL_SONGS.length,
+          songs: ALL_SONGS,
+          playlists: PLAYLISTS
+        };
+        var content = JSON.stringify(backupData, null, 2);
+        triggerExportFile("kordku_backup_" + ALL_SONGS.length + "_lagu.json", content, "application/json");
+      });
+
+      // 2. Export HTML
+      document.getElementById("btnExportHTML").addEventListener("click", function() {
+        var htmlStr = '<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><title>KordKu - Koleksi Chord</title><style>body{font-family:ui-monospace,Menlo,monospace;padding:20px;line-height:1.4;background:#fff;color:#1e293b;}h1{color:#15803d;border-bottom:2px solid #15803d;padding-bottom:8px;}pre{background:#f8fafc;padding:12px;border:1px solid #e2e8f0;border-radius:8px;white-space:pre-wrap;}</style></head><body><h1>Koleksi KordKu (' + ALL_SONGS.length + ' Lagu)</h1>';
+        ALL_SONGS.forEach(function(s, idx) {
+          htmlStr += '<h2>' + (idx + 1) + '. ' + s.title + ' (Key: ' + (s.origKey || 'C') + (s.transpose ? ' / Trans: ' + s.transpose : '') + ')</h2>';
+          if (s.note) htmlStr += '<p><strong>Catatan:</strong> ' + s.note + '</p>';
+          htmlStr += '<pre>' + s.body + '</pre><hr/>';
+        });
+        htmlStr += '</body></html>';
+        triggerExportFile("kordku_koleksi_" + ALL_SONGS.length + "_lagu.html", htmlStr, "text/html");
+      });
+
+      // 3. Export File TXT
+      document.getElementById("btnExportTXT").addEventListener("click", function() {
+        var fullText = generateFullSongPlainText();
+        triggerExportFile("kordku_chord_" + ALL_SONGS.length + "_lagu.txt", fullText, "text/plain");
+      });
+
+      // 4. Salin Seluruh Teks TXT ke Clipboard
+      document.getElementById("btnCopyAllTxt").addEventListener("click", function() {
+        var fullText = generateFullSongPlainText();
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(fullText).then(function() {
+            alert("Seluruh isi lirik & chord (" + ALL_SONGS.length + " lagu) berhasil disalin!");
+            exportModal.classList.add("hidden");
+          }).catch(function() {
+            showRawTextModal(fullText);
+          });
+        } else {
+          showRawTextModal(fullText);
+        }
+      });
+
+      // 5. Buka Raw JSON
+      document.getElementById("btnViewRawBackup").addEventListener("click", function() {
+        var backupData = {
+          version: "1.0",
+          exportDate: new Date().toISOString(),
+          totalSongs: ALL_SONGS.length,
+          songs: ALL_SONGS,
+          playlists: PLAYLISTS
+        };
+        showRawTextModal(JSON.stringify(backupData, null, 2));
+      });
+
+      // COPY DI DALAM TEXTAREA (DILENGKAPI FALLBACK KHUSUS iOS/KODER)
+      btnCopyFromTextarea.addEventListener("click", function() {
+        rawTextDisplay.focus();
+        rawTextDisplay.select();
+        rawTextDisplay.setSelectionRange(0, 999999); // Khusus kompatibilitas iOS Koder
+
+        try {
+          var successful = document.execCommand('copy');
+          if (successful) {
+            alert("Semua teks berhasil disalin! Kamu bisa paste ke file baru di Koder.");
+            return;
+          }
+        } catch(err) {}
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(rawTextDisplay.value).then(function() {
+            alert("Semua teks berhasil disalin! Kamu bisa paste ke file baru di Koder.");
+          }).catch(function() {
+            alert("Tekan tahan di dalam kotak teks, lalu klik 'Pilih Semua' dan 'Salin'.");
+          });
+        } else {
+          alert("Tekan tahan di dalam kotak teks, lalu klik 'Pilih Semua' dan 'Salin'.");
+        }
+      });
+    }
+
+    function saveSongsToStorage() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(ALL_SONGS));
+        localStorage.setItem("kordku_saved_songs_v1", JSON.stringify(ALL_SONGS)); 
+        localStorage.setItem(PLAYLIST_KEY, JSON.stringify(PLAYLISTS));
+        storageStatusBadge.textContent = "Tersimpan di memori (" + ALL_SONGS.length + " lagu)";
+      } catch (err) {}
+    }
+
+    function setupPlaylistModalEvents() {
+      document.getElementById("btnClosePlaylistModal").addEventListener("click", function() { document.getElementById("playlistModal").classList.add("hidden"); });
+      document.getElementById("btnCreatePlaylist").addEventListener("click", function() {
+        var pName = document.getElementById("newPlaylistInput").value.trim();
+        if (pName && !PLAYLISTS[pName]) {
+          PLAYLISTS[pName] = [];
+          document.getElementById("newPlaylistInput").value = "";
+          saveSongsToStorage();
+          renderPlaylistOptions();
+        } else if (PLAYLISTS[pName]) {
+          alert("Nama playlist sudah ada!");
+        }
+      });
+    }
+
+    function openPlaylistSelector(songIdx) {
+      targetPlaylistSongIndex = songIdx;
+      document.getElementById("playlistModal").classList.remove("hidden");
+      renderPlaylistOptions();
+    }
+
+    function renderPlaylistOptions() {
+      var container = document.getElementById("playlistOptionsContainer");
+      container.innerHTML = "";
+      Object.keys(PLAYLISTS).forEach(function(pName) {
+        var isInside = PLAYLISTS[pName].includes(targetPlaylistSongIndex);
+        var btn = document.createElement("button");
+        btn.className = "w-full text-left p-3 rounded-xl border text-xs font-bold flex items-center justify-between transition " +
+          (isInside ? "bg-amber-50 border-amber-300 text-amber-800" : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50");
+        btn.innerHTML = '<span class="flex items-center gap-2.5"><i class="fa-solid fa-layer-group text-slate-400"></i> ' + pName + '</span>' +
+          (isInside ? '<i class="fa-solid fa-circle-check text-amber-500 text-base"></i>' : '<i class="fa-regular fa-circle text-slate-300 text-base"></i>');
+        btn.onclick = function() {
+          if (isInside) {
+            PLAYLISTS[pName] = PLAYLISTS[pName].filter(function(id) { return id !== targetPlaylistSongIndex; });
+          } else {
+            PLAYLISTS[pName].push(targetPlaylistSongIndex);
+          }
+          saveSongsToStorage();
+          renderPlaylistOptions();
+          if (currentFilterMode === 'playlist_view') renderSongList();
+        };
+        container.appendChild(btn);
+      });
+    }
+
+    function setFilterMode(mode, pName) {
+      currentFilterMode = mode;
+      activePlaylistName = pName || null;
+      searchInput.value = "";
+
+      if (mode === 'all') {
+        filterTabAll.className = "flex-1 py-2 text-xs font-black rounded-t-lg bg-white text-emerald-800 border-t border-x border-slate-200 shadow-2xs";
+        filterTabPlaylist.className = "flex-1 py-2 text-xs font-bold rounded-t-lg text-slate-500 hover:text-amber-600 flex items-center justify-center gap-1";
+        searchArea.classList.remove("hidden");
+        searchInput.placeholder = "Cari judul lagu / artis...";
+      } else if (mode === 'playlist_view') {
+        filterTabPlaylist.className = "flex-1 py-2 text-xs font-black rounded-t-lg bg-white text-amber-600 border-t border-x border-slate-200 shadow-2xs flex items-center justify-center gap-1";
+        filterTabAll.className = "flex-1 py-2 text-xs font-bold rounded-t-lg text-slate-500 hover:text-emerald-800";
+        searchArea.classList.remove("hidden");
+        searchInput.placeholder = "Cari di " + pName + "...";
+      } else {
+        filterTabPlaylist.className = "flex-1 py-2 text-xs font-black rounded-t-lg bg-white text-amber-600 border-t border-x border-slate-200 shadow-2xs flex items-center justify-center gap-1";
+        filterTabAll.className = "flex-1 py-2 text-xs font-bold rounded-t-lg text-slate-500 hover:text-emerald-800";
+        searchArea.classList.add("hidden");
+      }
+      renderSongList();
+    }
+
+    function renderSongList() {
+      songListEl.innerHTML = "";
+
+      if (currentFilterMode === 'playlist_home') {
+        Object.keys(PLAYLISTS).forEach(function(pName) {
+          var count = PLAYLISTS[pName].length;
+          var div = document.createElement("div");
+          div.className = "w-full text-left p-3.5 hover:bg-slate-50 transition border-b border-slate-100 flex items-center justify-between cursor-pointer group";
+          div.innerHTML = '<div class="flex items-center gap-3 min-w-0 flex-1 pr-2">' +
+            '<div class="w-10 h-10 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center shadow-xs shrink-0">' +
+            '<i class="fa-solid fa-layer-group text-sm"></i></div>' +
+            '<div class="min-w-0 flex-1"><h4 class="text-sm font-black text-slate-800 tracking-tight truncate">' + pName + '</h4>' +
+            '<p class="text-xs font-semibold text-slate-500">' + count + ' lagu</p></div></div>' +
+            '<button class="p-2 text-slate-300 hover:text-rose-500 shrink-0 transition" title="Hapus Playlist">' +
+            '<i class="fa-solid fa-trash-can text-sm"></i></button>';
+          
+          div.onclick = function(e) {
+            if (e.target.closest('button')) {
+              e.stopPropagation();
+              if (confirm('Hapus playlist "' + pName + '"? Lagu di dalamnya tetep aman.')) {
+                delete PLAYLISTS[pName];
+                saveSongsToStorage();
+                renderSongList();
+              }
+              return;
+            }
+            setFilterMode('playlist_view', pName);
+          };
+          songListEl.appendChild(div);
+        });
+        songCounterBadge.textContent = Object.keys(PLAYLISTS).length + " Playlist";
+        return;
+      }
+
+      var q = searchInput.value.toLowerCase().trim();
+      var displayedCount = 0;
+
+      if (currentFilterMode === 'playlist_view') {
+        var backBtn = document.createElement("button");
+        backBtn.className = "w-full p-3 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-black flex items-center gap-2 border-b border-slate-200 transition active:scale-95 shrink-0";
+        backBtn.innerHTML = '<i class="fa-solid fa-arrow-left"></i> Kembali ke Daftar Playlist';
+        backBtn.onclick = function() { setFilterMode('playlist_home'); };
+        songListEl.appendChild(backBtn);
+      }
+
+      ALL_SONGS.forEach(function(song, idx) {
+        if (currentFilterMode === 'playlist_view') {
+          if (!PLAYLISTS[activePlaylistName] || !PLAYLISTS[activePlaylistName].includes(idx)) return;
+          if (q && !song.title.toLowerCase().includes(q)) return;
+        } else {
+          if (q && !song.title.toLowerCase().includes(q)) return;
+        }
+
+        displayedCount++;
+        var isCurrent = idx === currentSongIndex;
+
+        var container = document.createElement("div");
+        container.className = "border-b border-slate-100 bg-white flex flex-col w-full min-w-0 overflow-hidden";
+
+        var transBadgeHtml = (song.transpose && song.transpose !== 0)
+          ? '<span class="text-[10px] font-mono font-black bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded shrink-0">' + (song.transpose > 0 ? '+' : '') + song.transpose + '</span>'
+          : '';
+
+        var headerDiv = document.createElement("div");
+        headerDiv.className = "p-3 sm:p-3.5 flex items-center justify-between gap-2 cursor-pointer border-l-4 transition-colors active:bg-slate-100 w-full min-w-0 " +
+          (isCurrent ? "bg-emerald-50 border-emerald-700 text-emerald-950 font-black" : "border-transparent text-slate-800 hover:bg-slate-50 font-bold");
+        
+        var isFav = Object.keys(PLAYLISTS).some(function(p) { return PLAYLISTS[p].includes(idx); });
+        headerDiv.innerHTML = '<div class="flex items-center gap-2 min-w-0 flex-1 overflow-hidden pointer-events-none">' +
+          (isFav ? '<i class="fa-solid fa-star text-amber-500 text-xs shrink-0"></i>' : '') +
+          '<span class="truncate text-sm sm:text-base font-bold tracking-tight leading-snug block w-full min-w-0">' + (song.title || "Lagu") + '</span>' +
+          transBadgeHtml + '</div>' +
+          '<div class="flex items-center shrink-0 pointer-events-auto ml-1">' +
+          '<button class="action-menu-dots w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center text-slate-500 hover:text-slate-800 rounded-lg bg-slate-100 hover:bg-slate-200 transition active:scale-90" title="Menu Aksi">' +
+          '<i class="fa-solid fa-ellipsis-vertical text-sm px-1"></i></button></div>';
+
+        var actionPanel = document.createElement("div");
+        actionPanel.className = "action-menu-panel bg-slate-50 flex items-center justify-around px-2 border-l-4 border-transparent";
+        actionPanel.innerHTML = '<button class="flex-1 py-2 text-amber-600 hover:bg-amber-100 rounded-lg flex flex-col items-center gap-0.5 text-[11px] font-bold transition active:scale-95">' +
+          '<i class="fa-solid fa-star text-base"></i> Playlist</button>' +
+          '<button class="flex-1 py-2 text-blue-600 hover:bg-blue-100 rounded-lg flex flex-col items-center gap-0.5 text-[11px] font-bold transition active:scale-95">' +
+          '<i class="fa-solid fa-pen text-base"></i> Edit</button>' +
+          '<button class="flex-1 py-2 text-rose-600 hover:bg-rose-100 rounded-lg flex flex-col items-center gap-0.5 text-[11px] font-bold transition active:scale-95">' +
+          '<i class="fa-solid fa-trash text-base"></i> Hapus</button>';
+
+        var buttons = actionPanel.querySelectorAll("button");
+        buttons[0].onclick = function(e) { e.stopPropagation(); openPlaylistSelector(idx); actionPanel.classList.remove('open'); };
+        buttons[1].onclick = function(e) { e.stopPropagation(); openEditModal(idx); actionPanel.classList.remove('open'); };
+        buttons[2].onclick = function(e) { e.stopPropagation(); deleteSong(idx); actionPanel.classList.remove('open'); };
+
+        headerDiv.onclick = function(e) {
+          if (e.target.closest('.action-menu-dots')) {
+            var isOpen = actionPanel.classList.contains('open');
+            var allPanels = document.querySelectorAll('.action-menu-panel');
+            for (var p = 0; p < allPanels.length; p++) {
+              allPanels[p].classList.remove('open');
+            }
+            if (!isOpen) actionPanel.classList.add('open');
+            return;
+          }
+          selectSong(idx);
+        };
+
+        container.appendChild(headerDiv);
+        container.appendChild(actionPanel);
+        songListEl.appendChild(container);
+      });
+
+      songCounterBadge.textContent = currentFilterMode === 'playlist_view' ? "Playlist: " + activePlaylistName : displayedCount + " Lagu";
+    }
+
+    function deleteSong(idx) {
+      if (idx < 0 || idx >= ALL_SONGS.length) return;
+      if (confirm('Yakin ingin menghapus lagu "' + ALL_SONGS[idx].title + '" permanen?')) {
+        ALL_SONGS.splice(idx, 1);
+        Object.keys(PLAYLISTS).forEach(function(pName) {
+          PLAYLISTS[pName] = PLAYLISTS[pName].filter(function(i) { return i !== idx; }).map(function(i) { return i > idx ? i - 1 : i; });
+        });
+        
+        saveSongsToStorage();
+
+        if (currentSongIndex === idx) {
+          if (ALL_SONGS.length > 0) selectSong(Math.max(0, idx - 1));
+          else {
+            currentSongIndex = -1;
+            navSongTitle.textContent = "Pilih Lagu";
+            songContentSheet.innerHTML = "Belum ada lagu.";
+          }
+        } else if (currentSongIndex > idx) {
+          currentSongIndex--;
+        }
+        renderSongList();
+      }
+    }
+
+    function setupModalEvents() {
+      var openAddModal = function() {
+        editingIndex = null;
+        document.getElementById("songModalTitle").innerHTML = '<i class="fa-solid fa-guitar text-emerald-700"></i> Tambah Lagu Baru';
+        document.getElementById("modalSongTitle").value = "";
+        document.getElementById("modalSongKey").value = "";
+        document.getElementById("modalSongYoutube").value = "";
+        document.getElementById("modalSongBody").value = "";
+        document.getElementById("btnDeleteFromModal").classList.add("hidden");
+        document.getElementById("songModal").classList.remove("hidden");
+        document.getElementById("modalSongTitle").focus();
+      };
+
+      var closeModal = function() { document.getElementById("songModal").classList.add("hidden"); };
+
+      document.getElementById("btnOpenAddModal").addEventListener("click", openAddModal);
+      document.getElementById("btnOpenAddModalSidebar").addEventListener("click", openAddModal);
+      document.getElementById("btnCloseModal").addEventListener("click", closeModal);
+      document.getElementById("btnCancelModal").addEventListener("click", closeModal);
+
+      document.getElementById("btnDeleteFromModal").addEventListener("click", function() {
+        if (editingIndex !== null) {
+          closeModal();
+          deleteSong(editingIndex);
+        }
+      });
+
+      document.getElementById("btnSaveModal").addEventListener("click", function() {
+        var title = document.getElementById("modalSongTitle").value.trim();
+        var origKey = document.getElementById("modalSongKey").value.trim() || "C";
+        var ytInput = document.getElementById("modalSongYoutube").value.trim();
+        var youtubeId = parseYouTubeVideoId(ytInput);
+        var body = document.getElementById("modalSongBody").value.trim();
+
+        if (!title) { alert("Masukkan judul lagu!"); return; }
+        if (!body) { alert("Masukkan lirik & chord!"); return; }
+
+        if (editingIndex !== null) {
+          ALL_SONGS[editingIndex].title = title;
+          ALL_SONGS[editingIndex].origKey = origKey;
+          ALL_SONGS[editingIndex].youtubeId = youtubeId;
+          ALL_SONGS[editingIndex].body = body;
+          alert("Lagu berhasil diperbarui!");
+        } else {
+          ALL_SONGS.unshift({ 
+            title: title, 
+            origKey: origKey, 
+            youtubeId: youtubeId, 
+            body: body, 
+            note: "", 
+            transpose: 0,
+            isTwoColumns: true,
+            speed: 0.2
+          });
+          Object.keys(PLAYLISTS).forEach(function(pName) {
+            PLAYLISTS[pName] = PLAYLISTS[pName].map(function(idx) { return idx + 1; });
+          });
+          editingIndex = 0;
+          alert("Lagu berhasil ditambahkan!");
+        }
+        
+        saveSongsToStorage();
+        renderSongList();
+        selectSong(editingIndex);
+        closeModal();
+      });
+    }
+
+    function openEditModal(idx) {
+      editingIndex = idx;
+      var s = ALL_SONGS[idx];
+      document.getElementById("songModalTitle").innerHTML = '<i class="fa-solid fa-pen-to-square text-blue-600"></i> Edit Lagu';
+      document.getElementById("modalSongTitle").value = s.title;
+      document.getElementById("modalSongKey").value = s.origKey || "C";
+      document.getElementById("modalSongYoutube").value = s.youtubeId ? "https://youtu.be/" + s.youtubeId : "";
+      document.getElementById("modalSongBody").value = s.body;
+      document.getElementById("btnDeleteFromModal").classList.remove("hidden");
+      document.getElementById("songModal").classList.remove("hidden");
+    }
+
+    function setupPinchToZoomText() {
+      var initialDist = 0;
+      var startFontSize = currentFontSize;
+      var isPinching = false;
+
+      scrollContainer.addEventListener('touchstart', function(e) {
+        if (e.touches.length === 2) {
+          e.preventDefault();
+          isPinching = true;
+          initialDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+          startFontSize = currentFontSize;
+        }
+      }, { passive: false });
+
+      scrollContainer.addEventListener('touchmove', function(e) {
+        if (isPinching && e.touches.length === 2) {
+          e.preventDefault();
+          var currentDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+          if (initialDist > 0) {
+            var scale = currentDist / initialDist;
+            var targetSize = Math.max(10, Math.min(32, Math.round(startFontSize * scale)));
+            if (targetSize !== currentFontSize) {
+              currentFontSize = targetSize;
+              songContentSheet.style.fontSize = currentFontSize + "px";
+              document.getElementById("fontSizeDisplay").textContent = currentFontSize + "px";
+            }
+          }
+        }
+      }, { passive: false });
+
+      scrollContainer.addEventListener('touchend', function(e) {
+        if (e.touches.length < 2) isPinching = false;
+      });
+    }
+
+    function applyColumnMode() {
+      if (isTwoColumns) {
+        songContentSheet.className = "song-sheet-2col text-slate-900 text-base select-text";
+        document.getElementById("colModeText").textContent = "2 Kolom";
+      } else {
+        songContentSheet.className = "text-slate-900 text-base select-text whitespace-pre-wrap";
+        songContentSheet.style.fontFamily = 'ui-monospace, monospace';
+        songContentSheet.style.lineHeight = '1.35';
+        document.getElementById("colModeText").textContent = "1 Kolom";
+      }
+    }
+
+    function toggleColumnMode() {
+      isTwoColumns = !isTwoColumns;
+      if (currentSongIndex >= 0 && ALL_SONGS[currentSongIndex]) {
+        ALL_SONGS[currentSongIndex].isTwoColumns = isTwoColumns;
+        saveSongsToStorage();
+      }
+      applyColumnMode();
+    }
+
+    function formatSectionMarkers(line) {
+      var trimmed = line.trim();
+      if (!trimmed) return line;
+      if (/[\u{1F7E5}-\u{1F7EB}\u{1F7E0}-\u{1F7E4}\u{1F7E8}\u{1F7E9}]/u.test(trimmed)) return line;
+
+      var cleanUpper = trimmed.replace(/[\[\]:]/g, "").toUpperCase();
+      if (/^(INTRO|RAL)/i.test(cleanUpper)) return "🟨 " + cleanUpper;
+      if (/^VERSE/i.test(cleanUpper)) return "🟦 " + cleanUpper;
+      if (/^(PRE-?CHORUS|PRE-?REFF|\*)/i.test(cleanUpper)) return "🟪 " + cleanUpper;
+      if (/^(CHORUS|REFF)/i.test(cleanUpper)) return "🟩 " + cleanUpper;
+      if (/^(INTERLUDE|MUSIK|MUSIC|SOLO)/i.test(cleanUpper)) return "🟨 " + cleanUpper;
+      if (/^BRIDGE/i.test(cleanUpper)) return "🟫 " + cleanUpper;
+      if (/^(OUTRO|ENDING|CODA)/i.test(cleanUpper)) return "🟥 " + cleanUpper;
+      if (/^(KEY|NADA)/i.test(cleanUpper)) return "🟪 " + cleanUpper;
+
+      return line;
+    }
+
+    function parseSongToSections(bodyText) {
+      if (!bodyText) return [];
+      var lines = bodyText.split('\n');
+      var sections = [];
+      var currentSec = [];
+
+      var headerKeywords = ['INTRO', 'RAL', 'VERSE', 'PRE-CHORUS', 'PRECHORUS', 'PRE-REFF', 'PREREFF', 'CHORUS', 'REFF', 'INTERLUDE', 'MUSIK', 'MUSIC', 'SOLO', 'BRIDGE', 'OUTRO', 'ENDING', 'CODA', 'KEY', 'NADA', 'LALALA', 'TAG'];
+      var emojis = ['🟪', '🟨', '🟦', '🟩', '🟫', '🟥', '🟧'];
+
+      for (var i = 0; i < lines.length; i++) {
+        var rawLine = lines[i].replace(/\u00a0/g, ' ');
+        var trimmed = rawLine.trim();
+
+        if (!trimmed) {
+          if (currentSec.length > 0) currentSec.push('');
+          continue;
+        }
+
+        var isHeader = false;
+        if (emojis.some(function(e) { return trimmed.startsWith(e); })) isHeader = true;
+        else if (trimmed.startsWith('[') && trimmed.includes(']')) isHeader = true;
+        else if (trimmed.startsWith('(*)') || trimmed.startsWith('(#)')) isHeader = true;
+        else {
+          var clean = trimmed.replace(/[\[\]:\(\)\*\#]/g, '').trim().toUpperCase();
+          if (headerKeywords.includes(clean.split(/\s+/)[0] || '')) isHeader = true;
+        }
+
+        if (isHeader) {
+          if (currentSec.length > 0) {
+            while (currentSec.length > 0 && !currentSec[currentSec.length - 1].trim()) currentSec.pop();
+            if (currentSec.length > 0) sections.push(currentSec);
+          }
+          currentSec = [rawLine];
+        } else {
+          currentSec.push(rawLine);
+        }
+      }
+
+      if (currentSec.length > 0) {
+        while (currentSec.length > 0 && !currentSec[currentSec.length - 1].trim()) currentSec.pop();
+        if (currentSec.length > 0) sections.push(currentSec);
+      }
+      return sections;
+    }
+
+    function renderSongBody() {
+      if (currentSongIndex < 0 || !ALL_SONGS[currentSongIndex]) {
+        songContentSheet.innerHTML = "Pilih lagu terlebih dahulu.";
+        return;
+      }
+      var song = ALL_SONGS[currentSongIndex];
+
+      var formattedVal = currentTranspose > 0 ? "+" + currentTranspose : currentTranspose;
+      if (floatingTransBadge) floatingTransBadge.textContent = formattedVal;
+
+      var bodyText = song.body || "";
+      if (!bodyText.trim()) {
+        songContentSheet.innerHTML = "Belum ada lirik/notasi chord untuk lagu ini.";
+        return;
+      }
+
+      var chordRegex = /(^|[\s\(\[\-/@|~<])([A-G][b#]?(?:M|maj|min|m|dim|aug|sus|add)?[0-9]*(?:[-+]?[0-9b#]+)?(?:\/[A-G][b#]?)?)(?=$|[\s\)\],\.\-/@|~>])/g;
+      
+      var sections = parseSongToSections(bodyText);
+      if (sections.length === 0) {
+        songContentSheet.innerHTML = "Belum ada data chord.";
+        return;
+      }
+
+      var htmlSections = sections.map(function(secLines) {
+        var formattedLines = secLines.map(function(line) {
+          var formattedLine = formatSectionMarkers(line);
+          return formattedLine.replace(chordRegex, function(match, pfx, chord) {
+            var transposed = transposeChord(chord, currentTranspose);
+            return (pfx || '') + '<span class="chord-text">' + transposed + '</span>';
+          });
+        });
+        return '<div class="song-part">' + formattedLines.join('\n') + '</div>';
+      });
+
+      songContentSheet.innerHTML = htmlSections.join('');
+    }
+
+    function selectSong(idx) {
+      if (idx < 0 || idx >= ALL_SONGS.length) return;
+
+      if (currentSongIndex >= 0 && ALL_SONGS[currentSongIndex]) {
+        ALL_SONGS[currentSongIndex].note = songNoteInput.value;
+        saveSongsToStorage();
+      }
+
+      currentSongIndex = idx;
+      var song = ALL_SONGS[idx];
+      if (!song) return;
+      
+      currentTranspose = song.transpose !== undefined ? song.transpose : 0;
+      isTwoColumns = song.isTwoColumns !== undefined ? song.isTwoColumns : true;
+      applyColumnMode();
+
+      scrollSpeed = song.speed !== undefined ? song.speed : 0.2;
+      updateSpeedDisplay();
+
+      stopAutoScroll();
+      
+      var allPanels = document.querySelectorAll('.action-menu-panel');
+      for (var p = 0; p < allPanels.length; p++) {
+        allPanels[p].classList.remove('open');
+      }
+      renderSongList();
+
+      var shortTitle = song.title || "Pilih Lagu";
+      if (shortTitle.indexOf("-") !== -1) {
+        shortTitle = shortTitle.split("-").slice(1).join("-").trim();
+      }
+      if (currentTranspose !== 0) {
+        navSongTitle.textContent = shortTitle + " (" + (currentTranspose > 0 ? "+" : "") + currentTranspose + ")";
+      } else {
+        navSongTitle.textContent = shortTitle;
+      }
+      
+      songNoteInput.value = song.note || "";
+
+      renderSongBody();
+      scrollContainer.scrollTop = 0;
+
+      isYtPlaying = false;
+      btnCapsuleYoutube.classList.remove("ring-2", "ring-white", "animate-pulse");
+
+      if (isYtWidgetOpen) {
+        updateFloatingYoutubePlayer();
+      }
+
+      sidebar.classList.add("-translate-x-full");
+      sidebarOverlay.classList.add("hidden");
+    }
+
+    function changeTranspose(delta, reset) {
+      if (currentSongIndex < 0 || !ALL_SONGS[currentSongIndex]) return;
+      currentTranspose = reset ? 0 : currentTranspose + delta;
+      
+      ALL_SONGS[currentSongIndex].transpose = currentTranspose;
+      saveSongsToStorage();
+
+      var song = ALL_SONGS[currentSongIndex];
+      var shortTitle = song.title || "Pilih Lagu";
+      if (shortTitle.indexOf("-") !== -1) {
+        shortTitle = shortTitle.split("-").slice(1).join("-").trim();
+      }
+      if (currentTranspose !== 0) {
+        navSongTitle.textContent = shortTitle + " (" + (currentTranspose > 0 ? "+" : "") + currentTranspose + ")";
+      } else {
+        navSongTitle.textContent = shortTitle;
+      }
+
+      renderSongBody();
+      renderSongList();
+    }
+
+    function adjustFontSize(delta) {
+      currentFontSize = Math.max(10, Math.min(32, currentFontSize + delta));
+      songContentSheet.style.fontSize = currentFontSize + "px";
+      document.getElementById("fontSizeDisplay").textContent = currentFontSize + "px";
+    }
+
+    function updateSpeedDisplay() {
+      var displayVal = (scrollSpeed < 0.1 ? scrollSpeed.toFixed(2) : scrollSpeed.toFixed(1)) + "x";
+      if (floatingSpeedValueText) floatingSpeedValueText.textContent = displayVal;
+    }
+
+    function adjustSpeed(delta) {
+      scrollSpeed = Math.max(0.02, Math.min(2.0, parseFloat((scrollSpeed + delta).toFixed(2))));
+      updateSpeedDisplay();
+
+      if (currentSongIndex >= 0 && ALL_SONGS[currentSongIndex]) {
+        ALL_SONGS[currentSongIndex].speed = scrollSpeed;
+        saveSongsToStorage();
+      }
+    }
+
+    function toggleAutoScroll() {
+      if (currentSongIndex < 0) return;
+      isScrolling ? stopAutoScroll() : startAutoScroll();
+    }
+
+    function startAutoScroll() {
+      isScrolling = true;
+      if (btnFloatingAutoScroll) {
+        btnFloatingAutoScroll.classList.replace("bg-emerald-600", "bg-rose-600");
+        btnFloatingAutoScroll.classList.replace("hover:bg-emerald-500", "hover:bg-rose-500");
+        btnFloatingAutoScroll.querySelector("i").classList.replace("fa-play", "fa-pause");
+      }
+      scrollSubPixel = 0;
+
+      function step() {
+        if (!isScrolling) return;
+        scrollSubPixel += scrollSpeed;
+        if (scrollSubPixel >= 1) {
+          var pixelsToMove = Math.floor(scrollSubPixel);
+          scrollContainer.scrollTop += pixelsToMove;
+          scrollSubPixel -= pixelsToMove;
+        }
+        if (scrollContainer.scrollTop + scrollContainer.clientHeight >= scrollContainer.scrollHeight - 2) {
+          stopAutoScroll();
+          return;
+        }
+        animationFrameId = requestAnimationFrame(step);
+      }
+      animationFrameId = requestAnimationFrame(step);
+    }
+
+    function stopAutoScroll() {
+      isScrolling = false;
+      if (animationFrameId) cancelAnimationFrame(animationFrameId);
+      if (btnFloatingAutoScroll) {
+        btnFloatingAutoScroll.classList.replace("bg-rose-600", "bg-emerald-600");
+        btnFloatingAutoScroll.classList.replace("hover:bg-rose-500", "hover:bg-emerald-500");
+        btnFloatingAutoScroll.querySelector("i").classList.replace("fa-pause", "fa-play");
+      }
+    }
+
+    function setupDragAndDrop() {
+      var dropZone = document.body;
+      ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(function(evt) {
+        dropZone.addEventListener(evt, function(e) { e.preventDefault(); e.stopPropagation(); }, false);
+      });
+      dropZone.addEventListener('drop', function(e) {
+        if (e.dataTransfer.files.length) {
+          var reader = new FileReader();
+          reader.onload = function(ev) { parseImportedFile(ev.target.result); };
+          reader.readAsText(e.dataTransfer.files[0]);
+        }
+      }, false);
+    }
+
+    function parseImportedFile(htmlText) {
+      var parser = new DOMParser();
+      var doc = parser.parseFromString(htmlText, 'text/html');
+      var anchors = doc.querySelectorAll("a[href*='chords-and-tabs.net/song']");
+
+      if (anchors.length > 0) {
+        ALL_SONGS = [];
+        anchors.forEach(function(a) {
+          var title = a.textContent.trim();
+          if (!title) return;
+
+          var parent = a.closest('div') || a.parentElement;
+          var current = parent.nextElementSibling;
+          var bodyText = "";
+          var origKey = "";
+
+          while (current && !current.querySelector("a[href*='chords-and-tabs.net/song']")) {
+            if (current.tagName === 'PRE' || (current.tagName === 'DIV' && current.classList.contains('song'))) {
+              bodyText += current.innerText + "\n";
+            }
+            if (current.innerText.includes("KEY:")) {
+              var m = current.innerText.match(/KEY:\s*([A-G][b#]?m?)/i);
+              if (m) origKey = m[1];
+            }
+            current = current.nextElementSibling;
+          }
+
+          if (bodyText) {
+            ALL_SONGS.push({ 
+              title: title, 
+              origKey: origKey || "C", 
+              body: bodyText.trim(), 
+              note: "", 
+              transpose: 0,
+              isTwoColumns: true,
+              speed: 0.2
+            });
+          }
+        });
+
+        ALL_SONGS.sort(function(a, b) { return a.title.localeCompare(b.title); });
+        saveSongsToStorage();
+        renderSongList();
+        selectSong(0);
+        alert("Berhasil mengimpor " + ALL_SONGS.length + " lagu!");
+      } else {
+        alert("Format berkas tidak sesuai.");
+      }
+    }
+
+    window.addEventListener("DOMContentLoaded", initApp);
+  </script>
+</body>
+</html>
+
